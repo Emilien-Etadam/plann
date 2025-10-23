@@ -5,7 +5,6 @@ Minimal GUI for plann with Ollama integration
 A small, always-on-top window for quick event/task entry
 """
 
-import tkinter as tk
 from tkinter import messagebox
 import customtkinter as ctk
 import threading
@@ -66,56 +65,56 @@ class ConfigDialog:
 
     def create_widgets(self):
         """Create configuration form widgets"""
-        main_frame = ctk.CTkFrame(self.dialog, corner_radius=18)
-        main_frame.pack(fill=tk.BOTH, expand=True, padx=16, pady=16)
+        main_frame = ctk.CTkFrame(self.dialog, corner_radius=0, fg_color=("white", "#1f1f1f"))
+        main_frame.pack(fill="both", expand=True, padx=16, pady=16)
 
         title = ctk.CTkLabel(
             main_frame,
-            text="Réglages CalDAV",
+            text="Reglages CalDAV",
             font=ctk.CTkFont(size=18, weight="bold")
         )
         title.pack(pady=(10, 4))
 
         subtitle = ctk.CTkLabel(
             main_frame,
-            text="Connecte plann à ton serveur CalDAV.\nLes champs marqués d’un astérisque sont requis.",
+            text="Connecte plann a ton serveur CalDAV.\nLes champs marques d'un asterisk sont requis.",
             font=ctk.CTkFont(size=12),
             justify="center"
         )
         subtitle.pack(pady=(0, 12))
 
-        form_frame = ctk.CTkFrame(main_frame, corner_radius=14, fg_color=("white", "#1f1f1f"))
-        form_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=6)
+        form_frame = ctk.CTkFrame(main_frame, corner_radius=0, fg_color=("white", "#1f1f1f"))
+        form_frame.pack(fill="both", expand=True, padx=10, pady=6)
         form_frame.grid_columnconfigure(1, weight=1)
 
         label_font = ctk.CTkFont(size=13)
 
         # CalDAV URL
-        ctk.CTkLabel(form_frame, text="🔗 URL CalDAV *", anchor="w", font=label_font).grid(row=0, column=0, sticky="w", padx=12, pady=(12, 6))
-        self.url_entry = ctk.CTkEntry(form_frame, width=230)
+        ctk.CTkLabel(form_frame, text="\U0001F517", anchor="w", font=label_font).grid(row=0, column=0, sticky="w", padx=12, pady=(12, 6))
+        self.url_entry = ctk.CTkEntry(form_frame, width=230, corner_radius=0)
         self.url_entry.grid(row=0, column=1, sticky="ew", padx=12, pady=(12, 6))
         self.url_entry.insert(0, self.initial_config.get('caldav_url', 'https://'))
 
         # Username
-        ctk.CTkLabel(form_frame, text="👤 Utilisateur *", anchor="w", font=label_font).grid(row=1, column=0, sticky="w", padx=12, pady=6)
-        self.user_entry = ctk.CTkEntry(form_frame, width=230)
+        ctk.CTkLabel(form_frame, text="\U0001F464", anchor="w", font=label_font).grid(row=1, column=0, sticky="w", padx=12, pady=6)
+        self.user_entry = ctk.CTkEntry(form_frame, width=230, corner_radius=0)
         self.user_entry.grid(row=1, column=1, sticky="ew", padx=12, pady=6)
         self.user_entry.insert(0, self.initial_config.get('caldav_user', ''))
 
         # Password
-        ctk.CTkLabel(form_frame, text="🔒 Mot de passe *", anchor="w", font=label_font).grid(row=2, column=0, sticky="w", padx=12, pady=6)
-        self.pass_entry = ctk.CTkEntry(form_frame, width=230, show="•")
+        ctk.CTkLabel(form_frame, text="\U0001F512", anchor="w", font=label_font).grid(row=2, column=0, sticky="w", padx=12, pady=6)
+        self.pass_entry = ctk.CTkEntry(form_frame, width=230, show="\u2022", corner_radius=0)
         self.pass_entry.grid(row=2, column=1, sticky="ew", padx=12, pady=6)
 
         # Ollama host
-        ctk.CTkLabel(form_frame, text="🖥️ Hôte Ollama", anchor="w", font=label_font).grid(row=3, column=0, sticky="w", padx=12, pady=6)
-        self.ollama_host_entry = ctk.CTkEntry(form_frame, width=230)
+        ctk.CTkLabel(form_frame, text="\U0001F5A5", anchor="w", font=label_font).grid(row=3, column=0, sticky="w", padx=12, pady=6)
+        self.ollama_host_entry = ctk.CTkEntry(form_frame, width=230, corner_radius=0)
         self.ollama_host_entry.grid(row=3, column=1, sticky="ew", padx=12, pady=6)
         self.ollama_host_entry.insert(0, self.initial_config.get('ollama_host', 'http://localhost:11434'))
 
         # Ollama model
-        ctk.CTkLabel(form_frame, text="🧠 Modèle Ollama", anchor="w", font=label_font).grid(row=4, column=0, sticky="w", padx=12, pady=6)
-        self.ollama_model_entry = ctk.CTkEntry(form_frame, width=230)
+        ctk.CTkLabel(form_frame, text="\U0001F9E0", anchor="w", font=label_font).grid(row=4, column=0, sticky="w", padx=12, pady=6)
+        self.ollama_model_entry = ctk.CTkEntry(form_frame, width=230, corner_radius=0)
         self.ollama_model_entry.grid(row=4, column=1, sticky="ew", padx=12, pady=6)
         self.ollama_model_entry.insert(0, self.initial_config.get('ollama_model', 'llama2'))
 
@@ -137,7 +136,8 @@ class ConfigDialog:
             button_frame,
             text="Tester",
             width=90,
-            command=self.test_connection
+            command=self.test_connection,
+            corner_radius=0
         )
         self.test_button.pack(side="left", padx=4)
 
@@ -146,7 +146,8 @@ class ConfigDialog:
             button_frame,
             text="Enregistrer",
             width=110,
-            command=self.save_config
+            command=self.save_config,
+            corner_radius=0
         )
         self.save_button.pack(side="left", padx=4)
 
@@ -157,7 +158,8 @@ class ConfigDialog:
             fg_color="transparent",
             hover_color=("#d0d0d0", "#2a2a2a"),
             text_color=("black", "white"),
-            command=self.on_close
+            command=self.on_close,
+            corner_radius=0
         ).pack(side="left", padx=4)
 
     def test_connection(self):
@@ -177,7 +179,7 @@ class ConfigDialog:
         print("[DEBUG] Starting connection test...")
         print("="*50)
 
-        self.test_button.configure(state="disabled", text="Analyse…")
+        self.test_button.configure(state="disabled", text="Analyse...")
         self.test_result_label.configure(text="[...] Test de connexion...", text_color="#ff9f0a")
         self.dialog.update()
 
@@ -444,9 +446,9 @@ class PlannGUI:
         self.root.title("plann")
 
         # Set window size and position
-        self.window_width = 340
-        self.expanded_height = 320
-        self.compact_height = 210
+        self.window_width = 380
+        self.expanded_height = 360
+        self.compact_height = 240
 
         # Position in top-right corner
         screen_width = self.root.winfo_screenwidth()
@@ -459,6 +461,9 @@ class PlannGUI:
 
         # Always on top
         self.root.attributes('-topmost', True)
+
+        # State flag for pending operations
+        self.processing = False
 
         # Create UI
         self.create_widgets()
@@ -473,56 +478,48 @@ class PlannGUI:
 
     def create_widgets(self):
         """Create GUI widgets"""
-        main_frame = ctk.CTkFrame(self.root, corner_radius=18, fg_color=("white", "#1e1e1e"))
+        main_frame = ctk.CTkFrame(self.root, corner_radius=0, fg_color=("white", "#1e1e1e"))
         main_frame.pack(fill="both", expand=True, padx=10, pady=10)
 
-        # Status indicator
-        self.status_label = ctk.CTkLabel(
-            main_frame,
-            text="",
-            font=ctk.CTkFont(size=13)
-        )
-        self.status_label.pack(anchor="w", padx=16, pady=(14, 4))
+        status_row = ctk.CTkFrame(main_frame, fg_color="transparent")
+        status_row.pack(fill="x", padx=18, pady=(12, 6))
+        status_row.grid_columnconfigure(1, weight=1)
 
-        # Text input
+        self.llm_icon = ctk.CTkLabel(status_row, text="[]", width=24)
+        self.llm_icon.grid(row=0, column=0, padx=(0, 8), sticky="w")
+
+        self.status_label = ctk.CTkLabel(status_row, text="", font=ctk.CTkFont(size=12))
+        self.status_label.grid(row=0, column=1, sticky="w")
+
         self.text_input = ctk.CTkTextbox(
             main_frame,
-            height=60,
+            height=90,
             border_width=0,
-            corner_radius=14,
+            corner_radius=0,
             font=ctk.CTkFont(size=13),
             wrap="word"
         )
-        self.text_input.pack(fill="x", padx=16, pady=(6, 8))
+        self.text_input.pack(fill="x", padx=18, pady=(4, 10))
         self.text_input.bind('<Return>', self.on_enter_key)
         self.text_input.focus_set()
 
-        # Buttons frame
         buttons_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
-        buttons_frame.pack(fill="x", padx=14, pady=(0, 10))
-
-        self.add_button = ctk.CTkButton(
-            buttons_frame,
-            text="Ajouter",
-            command=self.add_event,
-            height=36,
-            font=ctk.CTkFont(size=14, weight="bold")
-        )
-        self.add_button.pack(side="left", expand=True, fill="x", padx=(0, 6))
+        buttons_frame.pack(fill="x", padx=18, pady=(0, 10))
 
         self.voice_button = ctk.CTkButton(
             buttons_frame,
-            text="🎙️ Dicter",
+            text="\U0001F3A4",
             command=self.voice_input,
-            height=36,
-            fg_color="#34c759",
-            hover_color="#2fa24d",
-            font=ctk.CTkFont(size=14, weight="bold")
+            height=32,
+            width=44,
+            corner_radius=0,
+            fg_color="#d5d5d5",
+            hover_color="#c0c0c0",
+            text_color="black"
         )
-        self.voice_button.pack(side="left", expand=True, fill="x")
+        self.voice_button.pack(side="left")
 
-        # History label
-        self.history_label = ctk.CTkLabel(main_frame, text="🗂️ Historique")
+        self.history_label = ctk.CTkLabel(main_frame, text="\U0001F5C2", font=ctk.CTkFont(size=16))
         self.history_label.pack(anchor="w", padx=18, pady=(0, 4))
 
         # History text area with scrollbar
@@ -533,10 +530,10 @@ class PlannGUI:
 
         self.history_text = ctk.CTkTextbox(
             self.history_container,
-            height=150,
+            height=200,
             wrap="word",
             font=ctk.CTkFont(family="SF Mono", size=12),
-            corner_radius=12,
+            corner_radius=0,
             border_width=0
         )
         self.history_text.grid(row=0, column=0, sticky="nsew")
@@ -557,49 +554,63 @@ class PlannGUI:
 
         # Bottom frame with options
         self.bottom_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
-        self.bottom_frame.pack(fill="x", padx=14, pady=(6, 2))
+        self.bottom_frame.pack(fill="x", padx=18, pady=(8, 4))
 
         self.toggle_history_button = ctk.CTkButton(
             self.bottom_frame,
-            text="▼ Historique",
-            height=28,
-            width=120,
+            text="\u25BC",
+            height=26,
+            width=32,
             command=self.toggle_history,
-            fg_color=("gray90", "#2f2f2f"),
+            fg_color="transparent",
             hover_color=("gray80", "#3a3a3a"),
-            text_color=("black", "white")
+            text_color=("black", "white"),
+            corner_radius=0
         )
         self.toggle_history_button.pack(side="left")
 
-        # Always on top switch
-        self.always_on_top_var = tk.BooleanVar(value=True)
-        self.always_on_top_switch = ctk.CTkSwitch(
-            self.bottom_frame,
-            text="Toujours visible",
-            variable=self.always_on_top_var,
-            command=self.toggle_always_on_top
-        )
-        self.always_on_top_switch.pack(side="left", padx=(12, 0))
+        self.always_on_top_var = ctk.BooleanVar(value=True)
+        self.pin_label = ctk.CTkLabel(self.bottom_frame, text="^", font=ctk.CTkFont(size=14))
+        self.pin_label.pack(side="left", padx=(12, 4))
 
-        # Right side buttons
+        self.always_on_top_checkbox = ctk.CTkCheckBox(
+            self.bottom_frame,
+            text="",
+            variable=self.always_on_top_var,
+            command=self.toggle_always_on_top,
+            corner_radius=0,
+            width=18,
+            height=18,
+            border_width=1
+        )
+        self.always_on_top_checkbox.pack(side="left")
+
         right_btn_frame = ctk.CTkFrame(self.bottom_frame, fg_color="transparent")
         right_btn_frame.pack(side="right")
 
         self.config_button = ctk.CTkButton(
             right_btn_frame,
-            text="⚙️",
-            width=44,
-            height=28,
-            command=self.open_config_dialog
+            text="\u2699",
+            width=38,
+            height=26,
+            command=self.open_config_dialog,
+            corner_radius=0,
+            fg_color="transparent",
+            hover_color=("gray80", "#3a3a3a"),
+            text_color=("black", "white")
         )
         self.config_button.pack(side="right", padx=(6, 0))
 
         self.clear_button = ctk.CTkButton(
             right_btn_frame,
-            text="🧹",
-            width=44,
-            height=28,
-            command=self.clear_history
+            text="\U0001F9F9",
+            width=38,
+            height=26,
+            command=self.clear_history,
+            corner_radius=0,
+            fg_color="transparent",
+            hover_color=("gray80", "#3a3a3a"),
+            text_color=("black", "white")
         )
         self.clear_button.pack(side="right")
 
@@ -620,22 +631,22 @@ class PlannGUI:
             except Exception:
                 components = []
 
-        components = [c.lower() for c in components]
-        url_lower = url.lower()
+            components = [c.lower() for c in components]
+            url_lower = url.lower()
 
-        supports_todo = 'vtodo' in components or 'task' in url_lower or 'todo' in url_lower
-        supports_event = 'vevent' in components or (not components and not supports_todo)
+            supports_todo = 'vtodo' in components or 'task' in url_lower or 'todo' in url_lower
+            supports_event = 'vevent' in components or (not components and not supports_todo)
 
-        # Si la collection est identifiée comme liste de tâches, on évite de la
-        # classer côté événements même si le serveur annonce VEVENT pour limiter
-        # les doublons lors des créations.
-        if supports_todo and ('task' in url_lower or 'todo' in url_lower):
-            supports_event = False
+            # Si la collection est identifiee comme liste de taches, on evite de la
+            # classer cote evenements meme si le serveur annonce VEVENT pour limiter
+            # les doublons lors des creations.
+            if supports_todo and ('task' in url_lower or 'todo' in url_lower):
+                supports_event = False
 
-        if supports_todo and cal not in self.todo_calendars:
-            self.todo_calendars.append(cal)
-        if supports_event and cal not in self.event_calendars:
-            self.event_calendars.append(cal)
+            if supports_todo and cal not in self.todo_calendars:
+                self.todo_calendars.append(cal)
+            if supports_event and cal not in self.event_calendars:
+                self.event_calendars.append(cal)
 
     def adjust_geometry(self, height):
         """Update window geometry while keeping screen position"""
@@ -652,12 +663,12 @@ class PlannGUI:
         if self.history_visible:
             self.history_label.pack(anchor='w', padx=18, pady=(0, 4), before=self.bottom_frame)
             self.history_container.pack(fill="both", expand=True, padx=12, pady=(0, 6), before=self.bottom_frame)
-            self.toggle_history_button.configure(text="▼ Historique")
+            self.toggle_history_button.configure(text="\u25BC Historique")
             target_height = self.expanded_height
         else:
             self.history_label.pack_forget()
             self.history_container.pack_forget()
-            self.toggle_history_button.configure(text="▲ Historique")
+            self.toggle_history_button.configure(text="\u25B2 Historique")
             target_height = self.compact_height
 
         self.adjust_geometry(target_height)
@@ -807,29 +818,33 @@ votre serveur CalDAV."""
         """Update Ollama connection status"""
         cfg_icon = "\u2705" if self.config_loaded else "\u26A0"
         llm_icon = "\u2705" if self.ollama_available else "\u26A0"
-        status_text = f"{cfg_icon} cfg  {llm_icon} llm"
+        status_text = ""
 
         if self.config_loaded and self.ollama_available:
             color = '#5cb85c'
+            self.llm_icon.configure(text='[]', text_color=color)
+            status_text = "pret"
         elif self.config_loaded:
             color = '#f0ad4e'
+            self.llm_icon.configure(text='[]', text_color=color)
+            status_text = "mode degrade"
         else:
             color = '#d9534f'
+            self.llm_icon.configure(text='[]', text_color=color)
+            status_text = "configuration requise"
 
         self.status_label.configure(text=status_text, text_color=color)
 
     def update_ui_state(self):
         """Update UI elements based on configuration status"""
         if not self.config_loaded:
-            # Disable action buttons if not configured
-            self.add_button.configure(state="disabled")
-            self.voice_button.configure(state="disabled")
             self.text_input.configure(state="disabled")
+            self.voice_button.configure(state="disabled")
         else:
-            # Enable action buttons if configured
-            self.add_button.configure(state="normal")
-            self.voice_button.configure(state="normal")
-            self.text_input.configure(state="normal")
+            if not self.processing:
+                self.text_input.configure(state="normal")
+            if self.voice_button.cget("state") != "disabled":
+                self.voice_button.configure(state="normal")
 
         # Update status regardless
         self.update_status()
@@ -848,9 +863,12 @@ votre serveur CalDAV."""
 
     def add_event(self):
         """Add event/task from text input"""
-        text = self.text_input.get("1.0", tk.END).strip()
+        text = self.text_input.get("1.0", "end").strip()
 
         if not text:
+            return
+
+        if self.processing:
             return
 
         if not self.ollama_available:
@@ -869,14 +887,17 @@ votre serveur CalDAV."""
             )
             return
 
-        # Disable button during processing
-        self.add_button.configure(state="disabled", text="⌛")
+        # Lock input during processing
+        self.processing = True
+        self.text_input.configure(state="disabled")
+        self.status_label.configure(text="envoi en cours", text_color="#0a84ff")
 
         # Process in background thread
         threading.Thread(target=self._process_event, args=(text,), daemon=True).start()
 
     def _process_event(self, text):
         """Process event in background thread"""
+        success = False
         try:
             # Log input
             self.log_message(f"\U0001F4DD Entree: {text}", 'info')
@@ -940,20 +961,24 @@ votre serveur CalDAV."""
 
             # Log success
             self.log_message(f"{event_icon} Ajoute: {summary}", 'success')
-
-            # Clear input
-            self.root.after(0, self._clear_input)
+            self.status_label.configure(text="operation terminee", text_color="#5cb85c")
+            success = True
+            self.root.after(0, lambda: self._unlock_input(clear=True))
 
         except Exception as e:
             self.log_message(f"\u274C Erreur: {str(e)}", 'error')
+            self.status_label.configure(text="erreur", text_color="#d9534f")
 
         finally:
-            # Re-enable button
-            self.root.after(0, lambda: self.add_button.configure(state="normal", text="Ajouter"))
+            if not success:
+                self.root.after(0, lambda: self._unlock_input(clear=False))
 
-    def _clear_input(self):
-        """Clear text input"""
-        self.text_input.delete("1.0", tk.END)
+    def _unlock_input(self, clear):
+        """Reset input area after processing"""
+        self.processing = False
+        self.text_input.configure(state="normal")
+        if clear:
+            self.text_input.delete("1.0", "end")
         self.text_input.focus_set()
 
     def voice_input(self):
@@ -970,7 +995,7 @@ votre serveur CalDAV."""
             return
 
         # Disable button
-        self.voice_button.configure(state="disabled", text="⌛")
+        self.voice_button.configure(state="disabled", text="\u231B")
 
         # Process in background
         threading.Thread(target=self._voice_input_thread, daemon=True).start()
@@ -1010,7 +1035,7 @@ votre serveur CalDAV."""
             self.log_message(f"\u274C Erreur vocale: {str(e)}", 'error')
 
         finally:
-            self.root.after(0, lambda: self.voice_button.configure(state="normal", text="🎙️ Dicter"))
+            self.root.after(0, lambda: self.voice_button.configure(state="normal", text="\U0001F3A4 Dicter"))
 
     def log_message(self, message, tag='info'):
         """Log message to history"""
@@ -1019,11 +1044,11 @@ votre serveur CalDAV."""
 
             # Add timestamp
             timestamp = datetime.now().strftime("%H:%M:%S")
-            self.history_text.insert(tk.END, f"[{timestamp}] ", 'time')
-            self.history_text.insert(tk.END, f"{message}\n", tag)
+            self.history_text.insert("end", f"[{timestamp}] ", 'time')
+            self.history_text.insert("end", f"{message}\n", tag)
 
             # Auto-scroll to bottom
-            self.history_text.see(tk.END)
+            self.history_text.see("end")
 
             self.history_text.configure(state="disabled")
 
@@ -1032,7 +1057,7 @@ votre serveur CalDAV."""
     def clear_history(self):
         """Clear history text"""
         self.history_text.configure(state="normal")
-        self.history_text.delete("1.0", tk.END)
+        self.history_text.delete("1.0", "end")
         self.history_text.configure(state="disabled")
 
     def run(self):

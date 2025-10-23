@@ -103,10 +103,10 @@ class NaturalLanguageParser:
 
     def parse_event(self, text: str) -> Dict[str, Any]:
         """
-        Parse natural language text into event/task information
+        Parse natural language text into event/task information.
 
         Args:
-            text: Natural language text (e.g., "Rendez-vous dentiste demain à 14h")
+            text: Natural language text (example: "Dentist appointment tomorrow at 14h")
 
         Returns:
             Dictionary with parsed information:
@@ -123,31 +123,31 @@ class NaturalLanguageParser:
         """
         today = datetime.now().strftime("%Y-%m-%d")
 
-        prompt = f"""Tu es un assistant qui extrait des informations structurées à partir de texte en langage naturel pour créer des événements de calendrier ou des tâches.
+        prompt = f"""You are an assistant that extracts structured data from natural language in order to build calendar events or tasks.
 
-Date du jour: {today}
+Today: {today}
 
-Texte à analyser: "{text}"
+Text: "{text}"
 
-Extrait les informations suivantes au format JSON:
-- "type": "event" (rendez-vous, réunion) ou "todo" (tâche, todo, à faire)
-- "summary": description courte de l'événement/tâche
-- "date": date au format YYYY-MM-DD (calcule la date si relative comme "demain", "lundi prochain", etc.)
-- "time": heure au format HH:MM si mentionnée (format 24h)
-- "duration": durée si mentionnée (format: "1h", "30m", "2h30m")
-- "due_date": date d'échéance pour les tâches (format YYYY-MM-DD)
-- "priority": priorité de 1 (très haute) à 9 (très basse) si mentionnée ou devinée du contexte
-- "alarm": rappel si mentionné (format: "1h", "30m", "1d" pour 1 jour avant)
-- "location": lieu ou adresse si mentionné (ex: salle, adresse postale, ville)
+Return a JSON object with the keys below:
+- "type": "event" (appointment, meeting) or "todo" (task)
+- "summary": short description
+- "date": YYYY-MM-DD (resolve relative expressions such as "tomorrow")
+- "time": HH:MM (24h clock, optional)
+- "duration": e.g. "1h", "30m", "2h30m" (optional)
+- "due_date": YYYY-MM-DD for tasks (optional)
+- "priority": value 1 (high) to 9 (low) when provided or implied
+- "alarm": reminder such as "1h", "30m", "1d" (optional)
+- "location": location or address when the text contains one
 
-Exemples:
-"Rendez-vous dentiste demain à 14h" -> {{"type": "event", "summary": "Rendez-vous dentiste", "date": "2025-10-23", "time": "14:00", "location": "Cabinet dentaire"}}
-"Réunion équipe lundi 10h pour 2 heures" -> {{"type": "event", "summary": "Réunion équipe", "date": "2025-10-27", "time": "10:00", "duration": "2h"}}
-"Acheter du pain" -> {{"type": "todo", "summary": "Acheter du pain", "priority": 5}}
-"Finir le rapport pour vendredi" -> {{"type": "todo", "summary": "Finir le rapport", "due_date": "2025-10-24", "priority": 3}}
-"Appeler Marie après-demain" -> {{"type": "todo", "summary": "Appeler Marie", "due_date": "2025-10-24", "priority": 5}}
+Examples:
+"Dentist appointment tomorrow at 14h" -> {{"type": "event", "summary": "Dentist appointment", "date": "2025-10-23", "time": "14:00", "location": "Dental clinic"}}
+"Team meeting Monday 10h for two hours" -> {{"type": "event", "summary": "Team meeting", "date": "2025-10-27", "time": "10:00", "duration": "2h"}}
+"Buy bread" -> {{"type": "todo", "summary": "Buy bread", "priority": 5}}
+"Finish the report by Friday" -> {{"type": "todo", "summary": "Finish the report", "due_date": "2025-10-24", "priority": 3}}
+"Call Marie the day after tomorrow" -> {{"type": "todo", "summary": "Call Marie", "due_date": "2025-10-24", "priority": 5}}
 
-Réponds UNIQUEMENT avec le JSON, sans autre texte."""
+Return JSON only."""
 
         result = self.ollama.generate(prompt, model=self.model)
 
@@ -179,8 +179,24 @@ Réponds UNIQUEMENT avec le JSON, sans autre texte."""
         text_lower = text.lower()
 
         # Determine type
-        task_keywords = ['acheter', 'faire', 'finir', 'appeler', 'envoyer', 'tâche', 'todo']
-        is_task = any(keyword in text_lower for keyword in task_keywords)
+        task_keywords = ['acheter', 'faire', 'finir', 'appeler', 'envoyer', 'tache', 'todo']
+        normalized = (
+            text_lower
+            .replace('\\u00e0', 'a')
+            .replace('\\u00e1', 'a')
+            .replace('\\u00e2', 'a')
+            .replace('\\u00e8', 'e')
+            .replace('\\u00e9', 'e')
+            .replace('\\u00ea', 'e')
+            .replace('\\u00eb', 'e')
+            .replace('\\u00ee', 'i')
+            .replace('\\u00ef', 'i')
+            .replace('\\u00f4', 'o')
+            .replace('\\u00f6', 'o')
+            .replace('\\u00f9', 'u')
+            .replace('\\u00fb', 'u')
+        )
+        is_task = any(keyword in normalized for keyword in task_keywords)
 
         result = {
             "type": "todo" if is_task else "event",
@@ -192,11 +208,11 @@ Réponds UNIQUEMENT avec le JSON, sans autre texte."""
         # Try to extract date
         today = datetime.now()
 
-        if "demain" in text_lower:
+        if "demain" in normalized:
             result["date"] = (today + timedelta(days=1)).strftime("%Y-%m-%d")
-        elif "après-demain" in text_lower or "apres-demain" in text_lower:
+        elif "apres-demain" in normalized.replace(' ', '-'):
             result["date"] = (today + timedelta(days=2)).strftime("%Y-%m-%d")
-        elif "aujourd'hui" in text_lower or "aujourdhui" in text_lower:
+        elif "aujourd'hui" in text_lower or "aujourdhui" in normalized:
             result["date"] = today.strftime("%Y-%m-%d")
 
         # Try to extract time (HH:MM or HHh or HHhMM)
@@ -207,8 +223,8 @@ Réponds UNIQUEMENT avec le JSON, sans autre texte."""
             minute = int(time_match.group(2)) if time_match.group(2) else 0
             result["time"] = f"{hour:02d}:{minute:02d}"
 
-        # Naive location extraction (after " à ", " au ", " chez ", " a ")
-        location_markers = [' à ', ' au ', ' chez ', ' en ', ' sur ', ' a ']
+        # Naive location extraction (after " a ", " au ", " chez ", etc.)
+        location_markers = [' \u00e0 ', ' a ', ' au ', ' chez ', ' en ', ' sur ']
         for marker in location_markers:
             if marker in text_lower:
                 idx = text_lower.find(marker)
@@ -293,15 +309,15 @@ def test_ollama_connection():
 
     print("Testing Ollama connection...")
     if client.is_available():
-        print("✓ Ollama is running")
+        print("[OK] Ollama is running")
         models = client.list_models()
         if models:
-            print(f"✓ Available models: {', '.join(models)}")
+            print(f"[OK] Available models: {', '.join(models)}")
         else:
-            print("⚠ No models found. Install a model with: ollama pull llama2")
+            print("[WARN] No models found. Install a model with: ollama pull llama2")
         return True
     else:
-        print("✗ Ollama is not running or not accessible")
+        print("[ERR] Ollama is not running or not accessible")
         print("  Start it with: ollama serve")
         return False
 

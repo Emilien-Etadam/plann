@@ -1,0 +1,10 @@
+*** Begin Patch
+*** Update File: plann/gui.py
+@@
+         self.processing = False
+         self.text_input.configure(state="normal")
+         if clear:
+             self.text_input.delete("1.0", "end")
+         self.text_input.focus_set()
++        self.update_status()
+*** End Patch
