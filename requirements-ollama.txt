@@ -4,6 +4,9 @@
 # Core dependency for Ollama API communication
 requests>=2.25.0
 
+# Modern interface toolkit
+customtkinter>=5.2.0
+
 # Optional: Voice recognition support
 # Uncomment to enable voice mode (requires portaudio system library)
 # SpeechRecognition>=3.8.0
