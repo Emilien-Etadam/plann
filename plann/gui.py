@@ -6,7 +6,8 @@ A small, always-on-top window for quick event/task entry
 """
 
 import tkinter as tk
-from tkinter import ttk, scrolledtext, messagebox
+from tkinter import messagebox
+import customtkinter as ctk
 import threading
 from datetime import datetime
 import sys
@@ -16,33 +17,38 @@ import time
 import queue
 
 from plann.ollama import OllamaClient, NaturalLanguageParser, format_for_plann
-from plann.config import read_config, expand_config_section
+from plann.config import read_config, expand_config_section, config_section
 from plann.lib import find_calendars
 from plann.commands import _add_event, _add_todo
+
+ctk.set_appearance_mode("system")
+ctk.set_default_color_theme("blue")
 
 
 class ConfigDialog:
     """Configuration dialog for CalDAV settings"""
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, initial_config=None, config_path=None):
         self.result = None
         self.is_active = True
         self.ui_queue = queue.Queue()
+        self.initial_config = initial_config or {}
+        self.config_path = config_path or os.path.expanduser("~/.config/calendar.conf")
 
         # Create dialog window
         if parent:
-            self.dialog = tk.Toplevel(parent)
+            self.dialog = ctk.CTkToplevel(parent)
         else:
-            self.dialog = tk.Tk()
+            self.dialog = ctk.CTk()
 
-        self.dialog.title("Configuration CalDAV")
-        self.dialog.geometry("500x450")
+        self.dialog.title("Config")
+        self.dialog.geometry("380x320")
         self.dialog.resizable(False, False)
 
         # Center window
         self.dialog.update_idletasks()
-        x = (self.dialog.winfo_screenwidth() // 2) - (500 // 2)
-        y = (self.dialog.winfo_screenheight() // 2) - (450 // 2)
+        x = (self.dialog.winfo_screenwidth() // 2) - (380 // 2)
+        y = (self.dialog.winfo_screenheight() // 2) - (320 // 2)
         self.dialog.geometry(f"+{x}+{y}")
 
         # Handle window close
@@ -60,94 +66,99 @@ class ConfigDialog:
 
     def create_widgets(self):
         """Create configuration form widgets"""
-        main_frame = ttk.Frame(self.dialog, padding="20")
-        main_frame.pack(fill=tk.BOTH, expand=True)
+        main_frame = ctk.CTkFrame(self.dialog, corner_radius=18)
+        main_frame.pack(fill=tk.BOTH, expand=True, padx=16, pady=16)
 
-        # Title
-        title = ttk.Label(
+        title = ctk.CTkLabel(
             main_frame,
-            text="Configuration CalDAV",
-            font=('Arial', 14, 'bold')
+            text="Réglages CalDAV",
+            font=ctk.CTkFont(size=18, weight="bold")
         )
-        title.pack(pady=(0, 20))
+        title.pack(pady=(10, 4))
 
-        # Info text
-        info = ttk.Label(
+        subtitle = ctk.CTkLabel(
             main_frame,
-            text="Configurez votre serveur CalDAV pour synchroniser\nvos événements et tâches.",
-            justify=tk.CENTER
+            text="Connecte plann à ton serveur CalDAV.\nLes champs marqués d’un astérisque sont requis.",
+            font=ctk.CTkFont(size=12),
+            justify="center"
         )
-        info.pack(pady=(0, 20))
+        subtitle.pack(pady=(0, 12))
 
-        # Form frame
-        form_frame = ttk.Frame(main_frame)
-        form_frame.pack(fill=tk.BOTH, expand=True)
+        form_frame = ctk.CTkFrame(main_frame, corner_radius=14, fg_color=("white", "#1f1f1f"))
+        form_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=6)
+        form_frame.grid_columnconfigure(1, weight=1)
+
+        label_font = ctk.CTkFont(size=13)
 
         # CalDAV URL
-        ttk.Label(form_frame, text="URL CalDAV *").grid(row=0, column=0, sticky=tk.W, pady=5)
-        self.url_entry = ttk.Entry(form_frame, width=40)
-        self.url_entry.grid(row=0, column=1, pady=5, padx=(10, 0))
-        self.url_entry.insert(0, "https://")
-
-        ttk.Label(
-            form_frame,
-            text="Ex: https://nextcloud.com/remote.php/dav/",
-            font=('Arial', 8),
-            foreground='gray'
-        ).grid(row=1, column=1, sticky=tk.W, padx=(10, 0))
+        ctk.CTkLabel(form_frame, text="🔗 URL CalDAV *", anchor="w", font=label_font).grid(row=0, column=0, sticky="w", padx=12, pady=(12, 6))
+        self.url_entry = ctk.CTkEntry(form_frame, width=230)
+        self.url_entry.grid(row=0, column=1, sticky="ew", padx=12, pady=(12, 6))
+        self.url_entry.insert(0, self.initial_config.get('caldav_url', 'https://'))
 
         # Username
-        ttk.Label(form_frame, text="Utilisateur *").grid(row=2, column=0, sticky=tk.W, pady=5)
-        self.user_entry = ttk.Entry(form_frame, width=40)
-        self.user_entry.grid(row=2, column=1, pady=5, padx=(10, 0))
+        ctk.CTkLabel(form_frame, text="👤 Utilisateur *", anchor="w", font=label_font).grid(row=1, column=0, sticky="w", padx=12, pady=6)
+        self.user_entry = ctk.CTkEntry(form_frame, width=230)
+        self.user_entry.grid(row=1, column=1, sticky="ew", padx=12, pady=6)
+        self.user_entry.insert(0, self.initial_config.get('caldav_user', ''))
 
         # Password
-        ttk.Label(form_frame, text="Mot de passe *").grid(row=3, column=0, sticky=tk.W, pady=5)
-        self.pass_entry = ttk.Entry(form_frame, width=40, show="*")
-        self.pass_entry.grid(row=3, column=1, pady=5, padx=(10, 0))
+        ctk.CTkLabel(form_frame, text="🔒 Mot de passe *", anchor="w", font=label_font).grid(row=2, column=0, sticky="w", padx=12, pady=6)
+        self.pass_entry = ctk.CTkEntry(form_frame, width=230, show="•")
+        self.pass_entry.grid(row=2, column=1, sticky="ew", padx=12, pady=6)
 
-        # Note about section
-        ttk.Label(
-            form_frame,
-            text="Note: La configuration sera sauvegardée dans la section 'default'",
-            font=('Arial', 8),
-            foreground='gray'
-        ).grid(row=4, column=0, columnspan=2, pady=10)
+        # Ollama host
+        ctk.CTkLabel(form_frame, text="🖥️ Hôte Ollama", anchor="w", font=label_font).grid(row=3, column=0, sticky="w", padx=12, pady=6)
+        self.ollama_host_entry = ctk.CTkEntry(form_frame, width=230)
+        self.ollama_host_entry.grid(row=3, column=1, sticky="ew", padx=12, pady=6)
+        self.ollama_host_entry.insert(0, self.initial_config.get('ollama_host', 'http://localhost:11434'))
+
+        # Ollama model
+        ctk.CTkLabel(form_frame, text="🧠 Modèle Ollama", anchor="w", font=label_font).grid(row=4, column=0, sticky="w", padx=12, pady=6)
+        self.ollama_model_entry = ctk.CTkEntry(form_frame, width=230)
+        self.ollama_model_entry.grid(row=4, column=1, sticky="ew", padx=12, pady=6)
+        self.ollama_model_entry.insert(0, self.initial_config.get('ollama_model', 'llama2'))
 
         # Test result label
-        self.test_result_label = ttk.Label(
+        self.test_result_label = ctk.CTkLabel(
             form_frame,
             text="",
-            font=('Arial', 9)
+            font=ctk.CTkFont(size=12),
+            text_color=("gray20", "gray80")
         )
-        self.test_result_label.grid(row=5, column=0, columnspan=2, pady=10)
+        self.test_result_label.grid(row=5, column=0, columnspan=2, pady=(10, 6))
 
         # Buttons frame
-        button_frame = ttk.Frame(main_frame)
-        button_frame.pack(pady=(20, 0))
+        button_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
+        button_frame.pack(pady=(6, 0))
 
         # Test button
-        self.test_button = ttk.Button(
+        self.test_button = ctk.CTkButton(
             button_frame,
-            text="Tester la connexion",
+            text="Tester",
+            width=90,
             command=self.test_connection
         )
-        self.test_button.pack(side=tk.LEFT, padx=5)
+        self.test_button.pack(side="left", padx=4)
 
         # Save button
-        self.save_button = ttk.Button(
+        self.save_button = ctk.CTkButton(
             button_frame,
-            text="Sauvegarder",
+            text="Enregistrer",
+            width=110,
             command=self.save_config
         )
-        self.save_button.pack(side=tk.LEFT, padx=5)
+        self.save_button.pack(side="left", padx=4)
 
         # Cancel button
-        ttk.Button(
+        ctk.CTkButton(
             button_frame,
-            text="Annuler",
+            text="Fermer",
+            fg_color="transparent",
+            hover_color=("#d0d0d0", "#2a2a2a"),
+            text_color=("black", "white"),
             command=self.on_close
-        ).pack(side=tk.LEFT, padx=5)
+        ).pack(side="left", padx=4)
 
     def test_connection(self):
         """Test CalDAV connection"""
@@ -156,9 +167,9 @@ class ConfigDialog:
         password = self.pass_entry.get()
 
         if not url or not user or not password:
-            self.test_result_label.config(
-                text="[X] Tous les champs obligatoires doivent être remplis",
-                foreground='red'
+            self.test_result_label.configure(
+                text="[X] Renseignez les champs requis",
+                text_color="#ff3b30"
             )
             return
 
@@ -166,8 +177,8 @@ class ConfigDialog:
         print("[DEBUG] Starting connection test...")
         print("="*50)
 
-        self.test_button.config(state=tk.DISABLED, text="Test en cours...")
-        self.test_result_label.config(text="[...] Test de connexion...", foreground='orange')
+        self.test_button.configure(state="disabled", text="Analyse…")
+        self.test_result_label.configure(text="[...] Test de connexion...", text_color="#ff9f0a")
         self.dialog.update()
 
         # Test in background
@@ -204,25 +215,25 @@ class ConfigDialog:
 
             if calendars:
                 self._safe_update_widget(
-                    lambda: self.test_result_label.config(
-                        text=f"[OK] Connexion réussie ! {len(calendars)} calendrier(s) trouvé(s)",
-                        foreground='green'
+                    lambda: self.test_result_label.configure(
+                        text=f"[OK] Connexion reussie ! {len(calendars)} calendrier(s) trouve(s)",
+                        text_color="#34c759"
                     )
                 )
             else:
                 self._safe_update_widget(
-                    lambda: self.test_result_label.config(
-                        text="[!] Connexion OK mais aucun calendrier trouvé",
-                        foreground='orange'
+                    lambda: self.test_result_label.configure(
+                        text="[!] Connexion OK mais aucun calendrier trouve",
+                        text_color="#ff9f0a"
                     )
                 )
 
         except socket.timeout:
             print("[DEBUG] Connection timeout!")
             self._safe_update_widget(
-                lambda: self.test_result_label.config(
-                    text="[X] Timeout : Le serveur ne répond pas (10s)",
-                    foreground='red'
+                lambda: self.test_result_label.configure(
+                    text="[X] Timeout : Le serveur ne repond pas (10s)",
+                    text_color="#ff3b30"
                 )
             )
 
@@ -232,16 +243,16 @@ class ConfigDialog:
             if len(error_msg) > 80:
                 error_msg = error_msg[:80] + "..."
             self._safe_update_widget(
-                lambda: self.test_result_label.config(
+                lambda: self.test_result_label.configure(
                     text=f"[X] Erreur : {error_msg}",
-                    foreground='red'
+                    text_color="#ff3b30"
                 )
             )
 
         finally:
             print("[DEBUG] Test finished")
             self._safe_update_widget(
-                lambda: self.test_button.config(state=tk.NORMAL, text="Tester la connexion")
+                lambda: self.test_button.configure(state="normal", text="Tester")
             )
 
     def _safe_update_widget(self, callback):
@@ -278,22 +289,26 @@ class ConfigDialog:
         url = self.url_entry.get().strip()
         user = self.user_entry.get().strip()
         password = self.pass_entry.get()
+        ollama_host = self.ollama_host_entry.get().strip()
+        ollama_model = self.ollama_model_entry.get().strip()
         section = "default"  # Always use 'default' section
 
         print(f"[DEBUG] URL: {url}")
         print(f"[DEBUG] User: {user}")
+        print(f"[DEBUG] Ollama host: {ollama_host}")
+        print(f"[DEBUG] Ollama model: {ollama_model}")
         print(f"[DEBUG] Section: {section}")
 
-        if not url or not user or not password:
+        if not url or not user:
             print("[DEBUG] Missing fields!")
             messagebox.showerror(
-                "Champs manquants",
-                "Veuillez remplir tous les champs obligatoires (*)."
+                "Missing fields",
+                "Provide at least URL and user."
             )
             return
 
         # Config file path
-        config_path = os.path.expanduser("~/.config/calendar.conf")
+        config_path = self.config_path
         config_dir = os.path.dirname(config_path)
 
         print(f"[DEBUG] Config path: {config_path}")
@@ -309,7 +324,7 @@ class ConfigDialog:
                 print(f"[DEBUG] Error creating directory: {e}")
                 messagebox.showerror(
                     "Erreur",
-                    f"Impossible de créer le répertoire de configuration:\n{e}"
+                    f"Impossible de creer le repertoire de configuration:\n{e}"
                 )
                 return
         else:
@@ -317,12 +332,14 @@ class ConfigDialog:
 
         # Load existing config or create new
         config = {}
+        existing_section = {}
         if os.path.exists(config_path):
             print(f"[DEBUG] Loading existing config...")
             try:
                 with open(config_path, 'r') as f:
                     config = json.load(f)
                 print(f"[DEBUG] Existing config loaded: {list(config.keys())}")
+                existing_section = config.get(section, {}).copy()
 
                 # Backup existing file
                 backup_path = f"{config_path}.{int(time.time())}.bak"
@@ -340,11 +357,30 @@ class ConfigDialog:
 
         # Add new section
         print(f"[DEBUG] Adding section '{section}' to config")
-        config[section] = {
-            "caldav_url": url,
-            "caldav_user": user,
-            "caldav_pass": password
-        }
+        updated_section = existing_section.copy()
+        updated_section["caldav_url"] = url
+        updated_section["caldav_user"] = user
+
+        if password:
+            updated_section["caldav_pass"] = password
+        elif "caldav_pass" not in updated_section:
+            messagebox.showerror(
+                "Missing password",
+                "Enter the CalDAV password at least once."
+            )
+            return
+
+        if ollama_host:
+            updated_section["ollama_host"] = ollama_host
+        elif "ollama_host" in updated_section:
+            del updated_section["ollama_host"]
+
+        if ollama_model:
+            updated_section["ollama_model"] = ollama_model
+        elif "ollama_model" in updated_section:
+            del updated_section["ollama_model"]
+
+        config[section] = updated_section
 
         # Save config
         print(f"[DEBUG] Writing config to file...")
@@ -354,8 +390,8 @@ class ConfigDialog:
             print(f"[DEBUG] Config written successfully!")
 
             messagebox.showinfo(
-                "Configuration sauvegardée",
-                f"Configuration sauvegardée avec succès dans:\n{config_path}\n\n"
+                "Configuration saved",
+                f"Config stored in:\n{config_path}\n\n"
                 f"Section: {section}"
             )
 
@@ -364,8 +400,8 @@ class ConfigDialog:
 
         except Exception as e:
             messagebox.showerror(
-                "Erreur",
-                f"Impossible de sauvegarder la configuration:\n{e}"
+                "Save error",
+                f"Unable to save configuration:\n{e}"
             )
 
     def on_close(self):
@@ -389,36 +425,40 @@ class PlannGUI:
         self.config_section = config_section
         self.model = model
         self.ollama_host = ollama_host
+        self.config_path = os.path.expanduser("~/.config/calendar.conf")
+        self.config = {}
+        self.section_names = []
+        self.calendars = []
+        self.event_calendars = []
+        self.todo_calendars = []
+        self._calendar_urls = set()
         self.config_loaded = False
-
-        # Initialize Ollama client
-        self.ollama = OllamaClient(ollama_host)
-        self.parser = NaturalLanguageParser(self.ollama, model)
-
-        # Check Ollama connection
-        self.ollama_available = self.ollama.is_available()
+        self.ollama = None
+        self.parser = None
+        self.ollama_available = False
+        self.history_visible = True
+        self.current_height = 0
 
         # Create main window
-        self.root = tk.Tk()
-        self.root.title("Plann AI")
+        self.root = ctk.CTk()
+        self.root.title("plann")
 
         # Set window size and position
-        window_width = 400
-        window_height = 500
+        self.window_width = 340
+        self.expanded_height = 320
+        self.compact_height = 210
 
         # Position in top-right corner
         screen_width = self.root.winfo_screenwidth()
-        screen_height = self.root.winfo_screenheight()
-        x = screen_width - window_width - 20
-        y = 50
+        x = screen_width - self.window_width - 24
+        y = 28
 
-        self.root.geometry(f"{window_width}x{window_height}+{x}+{y}")
+        self.root.geometry(f"{self.window_width}x{self.expanded_height}+{x}+{y}")
+        self.root.minsize(self.window_width, self.compact_height)
+        self.current_height = self.expanded_height
 
         # Always on top
         self.root.attributes('-topmost', True)
-
-        # Style
-        self.setup_styles()
 
         # Create UI
         self.create_widgets()
@@ -428,199 +468,213 @@ class PlannGUI:
 
         # Update UI based on configuration status
         self.update_ui_state()
-
-    def setup_styles(self):
-        """Setup UI styles"""
-        style = ttk.Style()
-        style.theme_use('clam')
-
-        # Colors
-        bg_color = '#2b2b2b'
-        fg_color = '#ffffff'
-        entry_bg = '#3c3c3c'
-        button_bg = '#4a9eff'
-        success_bg = '#5cb85c'
-        error_bg = '#d9534f'
-
-        # Configure styles
-        style.configure('TFrame', background=bg_color)
-        style.configure('TLabel', background=bg_color, foreground=fg_color, font=('Arial', 10))
-        style.configure('Title.TLabel', font=('Arial', 12, 'bold'))
-        style.configure('Status.TLabel', font=('Arial', 9))
-        style.configure('TButton', font=('Arial', 10), padding=5)
-        style.configure('Add.TButton', background=button_bg, foreground='white')
-        style.configure('Voice.TButton', background=success_bg, foreground='white')
-
-        # Main window background
-        self.root.configure(bg=bg_color)
+        self.init_ollama()
+        self.update_status()
 
     def create_widgets(self):
         """Create GUI widgets"""
-        # Main frame
-        main_frame = ttk.Frame(self.root, padding="10")
-        main_frame.pack(fill=tk.BOTH, expand=True)
-
-        # Title
-        title_label = ttk.Label(
-            main_frame,
-            text="Plann AI",
-            style='Title.TLabel'
-        )
-        title_label.pack(pady=(0, 10))
+        main_frame = ctk.CTkFrame(self.root, corner_radius=18, fg_color=("white", "#1e1e1e"))
+        main_frame.pack(fill="both", expand=True, padx=10, pady=10)
 
         # Status indicator
-        self.status_label = ttk.Label(
+        self.status_label = ctk.CTkLabel(
             main_frame,
             text="",
-            style='Status.TLabel'
+            font=ctk.CTkFont(size=13)
         )
-        self.status_label.pack()
-
-        # Separator
-        ttk.Separator(main_frame, orient='horizontal').pack(fill='x', pady=10)
-
-        # Input frame
-        input_frame = ttk.Frame(main_frame)
-        input_frame.pack(fill=tk.X, pady=(0, 10))
-
-        input_label = ttk.Label(input_frame, text="Décrivez votre événement ou tâche :")
-        input_label.pack(anchor='w')
+        self.status_label.pack(anchor="w", padx=16, pady=(14, 4))
 
         # Text input
-        self.text_input = tk.Text(
-            input_frame,
-            height=3,
-            wrap=tk.WORD,
-            font=('Arial', 10),
-            bg='#3c3c3c',
-            fg='white',
-            insertbackground='white',
-            relief=tk.FLAT,
-            padx=5,
-            pady=5
+        self.text_input = ctk.CTkTextbox(
+            main_frame,
+            height=60,
+            border_width=0,
+            corner_radius=14,
+            font=ctk.CTkFont(size=13),
+            wrap="word"
         )
-        self.text_input.pack(fill=tk.X, pady=(5, 0))
+        self.text_input.pack(fill="x", padx=16, pady=(6, 8))
         self.text_input.bind('<Return>', self.on_enter_key)
-        self.text_input.focus()
+        self.text_input.focus_set()
 
         # Buttons frame
-        buttons_frame = ttk.Frame(main_frame)
-        buttons_frame.pack(fill=tk.X, pady=(0, 10))
+        buttons_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
+        buttons_frame.pack(fill="x", padx=14, pady=(0, 10))
 
-        # Add button
-        self.add_button = tk.Button(
+        self.add_button = ctk.CTkButton(
             buttons_frame,
-            text="[+] Ajouter",
+            text="Ajouter",
             command=self.add_event,
-            bg='#4a9eff',
-            fg='white',
-            font=('Arial', 10, 'bold'),
-            relief=tk.FLAT,
-            padx=15,
-            pady=5,
-            cursor='hand2'
+            height=36,
+            font=ctk.CTkFont(size=14, weight="bold")
         )
-        self.add_button.pack(side=tk.LEFT, expand=True, fill=tk.X, padx=(0, 5))
+        self.add_button.pack(side="left", expand=True, fill="x", padx=(0, 6))
 
-        # Voice button
-        self.voice_button = tk.Button(
+        self.voice_button = ctk.CTkButton(
             buttons_frame,
-            text="[Mic] Vocal",
+            text="🎙️ Dicter",
             command=self.voice_input,
-            bg='#5cb85c',
-            fg='white',
-            font=('Arial', 10, 'bold'),
-            relief=tk.FLAT,
-            padx=15,
-            pady=5,
-            cursor='hand2'
+            height=36,
+            fg_color="#34c759",
+            hover_color="#2fa24d",
+            font=ctk.CTkFont(size=14, weight="bold")
         )
-        self.voice_button.pack(side=tk.LEFT, expand=True, fill=tk.X)
-
-        # Separator
-        ttk.Separator(main_frame, orient='horizontal').pack(fill='x', pady=10)
+        self.voice_button.pack(side="left", expand=True, fill="x")
 
         # History label
-        history_label = ttk.Label(main_frame, text="Historique récent :")
-        history_label.pack(anchor='w')
+        self.history_label = ctk.CTkLabel(main_frame, text="🗂️ Historique")
+        self.history_label.pack(anchor="w", padx=18, pady=(0, 4))
 
-        # History text area
-        self.history_text = scrolledtext.ScrolledText(
-            main_frame,
-            height=12,
-            wrap=tk.WORD,
-            font=('Courier', 9),
-            bg='#3c3c3c',
-            fg='#d0d0d0',
-            relief=tk.FLAT,
-            padx=5,
-            pady=5,
-            state=tk.DISABLED
+        # History text area with scrollbar
+        self.history_container = ctk.CTkFrame(main_frame, fg_color="transparent")
+        self.history_container.pack(fill="both", expand=True, padx=12, pady=(0, 6))
+        self.history_container.grid_columnconfigure(0, weight=1)
+        self.history_container.grid_rowconfigure(0, weight=1)
+
+        self.history_text = ctk.CTkTextbox(
+            self.history_container,
+            height=150,
+            wrap="word",
+            font=ctk.CTkFont(family="SF Mono", size=12),
+            corner_radius=12,
+            border_width=0
         )
-        self.history_text.pack(fill=tk.BOTH, expand=True, pady=(5, 0))
+        self.history_text.grid(row=0, column=0, sticky="nsew")
+        self.history_text.configure(state="disabled")
+
+        history_scroll = ctk.CTkScrollbar(
+            self.history_container,
+            command=self.history_text.yview
+        )
+        history_scroll.grid(row=0, column=1, sticky="ns", padx=(6, 0))
+        self.history_text.configure(yscrollcommand=history_scroll.set)
 
         # Configure tags for colored output
-        self.history_text.tag_config('success', foreground='#5cb85c')
-        self.history_text.tag_config('error', foreground='#d9534f')
-        self.history_text.tag_config('info', foreground='#4a9eff')
-        self.history_text.tag_config('time', foreground='#888888')
+        self.history_text.tag_config('success', foreground='#34c759')
+        self.history_text.tag_config('error', foreground='#ff3b30')
+        self.history_text.tag_config('info', foreground='#0a84ff')
+        self.history_text.tag_config('time', foreground='#8e8e93')
 
         # Bottom frame with options
-        bottom_frame = ttk.Frame(main_frame)
-        bottom_frame.pack(fill=tk.X, pady=(10, 0))
+        self.bottom_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
+        self.bottom_frame.pack(fill="x", padx=14, pady=(6, 2))
 
-        # Always on top checkbox
+        self.toggle_history_button = ctk.CTkButton(
+            self.bottom_frame,
+            text="▼ Historique",
+            height=28,
+            width=120,
+            command=self.toggle_history,
+            fg_color=("gray90", "#2f2f2f"),
+            hover_color=("gray80", "#3a3a3a"),
+            text_color=("black", "white")
+        )
+        self.toggle_history_button.pack(side="left")
+
+        # Always on top switch
         self.always_on_top_var = tk.BooleanVar(value=True)
-        always_on_top_cb = tk.Checkbutton(
-            bottom_frame,
-            text="Toujours au premier plan",
+        self.always_on_top_switch = ctk.CTkSwitch(
+            self.bottom_frame,
+            text="Toujours visible",
             variable=self.always_on_top_var,
-            command=self.toggle_always_on_top,
-            bg='#2b2b2b',
-            fg='white',
-            selectcolor='#3c3c3c',
-            activebackground='#2b2b2b',
-            activeforeground='white',
-            font=('Arial', 9)
+            command=self.toggle_always_on_top
         )
-        always_on_top_cb.pack(side=tk.LEFT)
+        self.always_on_top_switch.pack(side="left", padx=(12, 0))
 
-        # Config button
-        config_button = tk.Button(
-            bottom_frame,
-            text="[Config]",
-            command=self.open_config_dialog,
-            bg='#6c757d',
-            fg='white',
-            font=('Arial', 9),
-            relief=tk.FLAT,
-            padx=10,
-            pady=2,
-            cursor='hand2'
-        )
-        config_button.pack(side=tk.RIGHT, padx=(0, 5))
+        # Right side buttons
+        right_btn_frame = ctk.CTkFrame(self.bottom_frame, fg_color="transparent")
+        right_btn_frame.pack(side="right")
 
-        # Clear history button
-        clear_button = tk.Button(
-            bottom_frame,
-            text="[Effacer]",
-            command=self.clear_history,
-            bg='#6c757d',
-            fg='white',
-            font=('Arial', 9),
-            relief=tk.FLAT,
-            padx=10,
-            pady=2,
-            cursor='hand2'
+        self.config_button = ctk.CTkButton(
+            right_btn_frame,
+            text="⚙️",
+            width=44,
+            height=28,
+            command=self.open_config_dialog
         )
-        clear_button.pack(side=tk.RIGHT)
+        self.config_button.pack(side="right", padx=(6, 0))
+
+        self.clear_button = ctk.CTkButton(
+            right_btn_frame,
+            text="🧹",
+            width=44,
+            height=28,
+            command=self.clear_history
+        )
+        self.clear_button.pack(side="right")
+
+    def _register_calendars(self, calendars):
+        """Register discovered calendars and classify them."""
+        for cal in calendars:
+            url = getattr(cal, 'url', '') or ''
+            if url in self._calendar_urls:
+                continue
+
+            if url:
+                self._calendar_urls.add(url)
+
+            self.calendars.append(cal)
+
+            try:
+                components = cal.get_supported_components() or []
+            except Exception:
+                components = []
+
+        components = [c.lower() for c in components]
+        url_lower = url.lower()
+
+        supports_todo = 'vtodo' in components or 'task' in url_lower or 'todo' in url_lower
+        supports_event = 'vevent' in components or (not components and not supports_todo)
+
+        # Si la collection est identifiée comme liste de tâches, on évite de la
+        # classer côté événements même si le serveur annonce VEVENT pour limiter
+        # les doublons lors des créations.
+        if supports_todo and ('task' in url_lower or 'todo' in url_lower):
+            supports_event = False
+
+        if supports_todo and cal not in self.todo_calendars:
+            self.todo_calendars.append(cal)
+        if supports_event and cal not in self.event_calendars:
+            self.event_calendars.append(cal)
+
+    def adjust_geometry(self, height):
+        """Update window geometry while keeping screen position"""
+        self.current_height = max(self.compact_height, min(height, self.expanded_height))
+        self.root.update_idletasks()
+        x = self.root.winfo_x()
+        y = self.root.winfo_y()
+        self.root.geometry(f"{self.window_width}x{self.current_height}+{x}+{y}")
+
+    def toggle_history(self):
+        """Toggle history visibility and window height"""
+        self.history_visible = not self.history_visible
+
+        if self.history_visible:
+            self.history_label.pack(anchor='w', padx=18, pady=(0, 4), before=self.bottom_frame)
+            self.history_container.pack(fill="both", expand=True, padx=12, pady=(0, 6), before=self.bottom_frame)
+            self.toggle_history_button.configure(text="▼ Historique")
+            target_height = self.expanded_height
+        else:
+            self.history_label.pack_forget()
+            self.history_container.pack_forget()
+            self.toggle_history_button.configure(text="▲ Historique")
+            target_height = self.compact_height
+
+        self.adjust_geometry(target_height)
 
     def load_config(self):
         """Load plann configuration and calendars"""
-        config_path = os.path.expanduser("~/.config/calendar.conf")
+        config_path = self.config_path
 
         print(f"\n[DEBUG] Loading config from: {config_path}")
         print(f"[DEBUG] File exists: {os.path.exists(config_path)}")
+
+        self.section_names = []
+        self.config = {}
+        self.calendars = []
+        self.event_calendars = []
+        self.todo_calendars = []
+        self._calendar_urls = set()
 
         try:
             config_data = read_config(config_path)
@@ -643,29 +697,65 @@ class PlannGUI:
                     except Exception as e:
                         print(f"[DEBUG] Failed to save migration: {e}")
 
-            self.config = expand_config_section(config_data, self.config_section)
+            section_names = list(expand_config_section(config_data, self.config_section))
+            if not section_names:
+                self.log_message("?? Aucune section de configuration valide trouvee. Verifiez votre fichier calendar.conf.", 'error')
+                self.show_config_help()
+                return False
 
-            # Find calendars
-            self.calendars = find_calendars(self.config, raise_errors=False)
+            # Resolve sections into full config dictionaries
+            host_from_config = None
+            model_from_config = None
+            self.section_names = section_names
+            for name in section_names:
+                section_config = config_section(config_data, name)
+                self.config[name] = section_config
+                if not section_config:
+                    continue
+                if host_from_config is None and section_config.get('ollama_host'):
+                    host_from_config = section_config['ollama_host']
+                if model_from_config is None and section_config.get('ollama_model'):
+                    model_from_config = section_config['ollama_model']
+                calendars_for_section = find_calendars(section_config, raise_errors=False)
+                if calendars_for_section:
+                    self._register_calendars(calendars_for_section)
+
+            if host_from_config:
+                self.ollama_host = host_from_config
+            if model_from_config:
+                self.model = model_from_config
 
             if not self.calendars:
-                self.log_message("⚠️ Aucun calendrier trouvé. Configurez plann d'abord.", 'error')
+                self.log_message("?? Aucun calendrier trouve. Configurez plann d'abord.", 'error')
                 self.show_config_help()
                 return False
             else:
-                self.log_message(f"✓ {len(self.calendars)} calendrier(s) trouvé(s)", 'success')
+                self.log_message(f"\u2705 {len(self.calendars)} calendrier(s) trouve(s)", 'success')
+                self.log_message(f"\u2139 Evenements: {len(self.event_calendars)} / Taches: {len(self.todo_calendars)}", 'info')
                 return True
 
         except Exception as e:
             self.config = None
             self.calendars = []
-            self.log_message(f"⚠️ Erreur de configuration: {e}", 'error')
+            self.log_message(f"\u26A0 Erreur de configuration: {e}", 'error')
             self.show_config_help()
             return False
 
+    def init_ollama(self):
+        """Initialise Ollama client and parser"""
+        try:
+            self.ollama = OllamaClient(self.ollama_host)
+            self.parser = NaturalLanguageParser(self.ollama, self.model)
+            self.ollama_available = self.ollama.is_available()
+        except Exception as exc:
+            self.ollama = None
+            self.parser = None
+            self.ollama_available = False
+            self.log_message(f"?? Ollama non disponible: {exc}", 'error')
+
     def show_config_help(self):
         """Show configuration help dialog"""
-        help_message = """Plann n'est pas encore configuré !
+        help_message = """Plann n'est pas encore configure !
 
 Voulez-vous ouvrir l'assistant de configuration ?
 
@@ -685,7 +775,7 @@ votre serveur CalDAV."""
             if messagebox.askyesno(
                 "Quitter ?",
                 "Voulez-vous quitter l'application ?\n\n"
-                "Sans configuration, vous ne pourrez pas ajouter d'événements.",
+                "Sans configuration, vous ne pourrez pas ajouter d'evenements.",
                 icon='warning'
             ):
                 self.root.quit()
@@ -693,52 +783,53 @@ votre serveur CalDAV."""
 
     def open_config_dialog(self):
         """Open configuration dialog"""
-        dialog = ConfigDialog(self.root)
+        initial_config = {}
+        if self.section_names:
+            initial_config = self.config.get(self.section_names[0], {})
+        dialog = ConfigDialog(self.root, initial_config=initial_config, config_path=self.config_path)
         result = dialog.show()
 
         if result:
             # Configuration saved, reload
-            self.log_message("✓ Configuration sauvegardée, rechargement...", 'success')
+            self.log_message("OK configuration sauvegardee, rechargement...", 'success')
             self.config_loaded = self.load_config()
+            self.init_ollama()
             self.update_ui_state()
+            self.update_status()
 
             if self.config_loaded:
                 messagebox.showinfo(
-                    "Succès",
-                    "Configuration chargée avec succès !\n\n"
-                    "Vous pouvez maintenant ajouter des événements et tâches."
+                    "Info",
+                    "Configuration chargee.\nVous pouvez ajouter des evenements et taches."
                 )
 
     def update_status(self):
         """Update Ollama connection status"""
-        if not self.config_loaded:
-            self.status_label.config(
-                text="[X] Configuration requise",
-                foreground='#d9534f'
-            )
-        elif self.ollama_available:
-            self.status_label.config(
-                text=f"[OK] Connecté à Ollama ({self.model})",
-                foreground='#5cb85c'
-            )
+        cfg_icon = "\u2705" if self.config_loaded else "\u26A0"
+        llm_icon = "\u2705" if self.ollama_available else "\u26A0"
+        status_text = f"{cfg_icon} cfg  {llm_icon} llm"
+
+        if self.config_loaded and self.ollama_available:
+            color = '#5cb85c'
+        elif self.config_loaded:
+            color = '#f0ad4e'
         else:
-            self.status_label.config(
-                text="[X] Ollama non disponible",
-                foreground='#d9534f'
-            )
+            color = '#d9534f'
+
+        self.status_label.configure(text=status_text, text_color=color)
 
     def update_ui_state(self):
         """Update UI elements based on configuration status"""
         if not self.config_loaded:
             # Disable action buttons if not configured
-            self.add_button.config(state=tk.DISABLED)
-            self.voice_button.config(state=tk.DISABLED)
-            self.text_input.config(state=tk.DISABLED)
+            self.add_button.configure(state="disabled")
+            self.voice_button.configure(state="disabled")
+            self.text_input.configure(state="disabled")
         else:
             # Enable action buttons if configured
-            self.add_button.config(state=tk.NORMAL)
-            self.voice_button.config(state=tk.NORMAL)
-            self.text_input.config(state=tk.NORMAL)
+            self.add_button.configure(state="normal")
+            self.voice_button.configure(state="normal")
+            self.text_input.configure(state="normal")
 
         # Update status regardless
         self.update_status()
@@ -765,7 +856,7 @@ votre serveur CalDAV."""
         if not self.ollama_available:
             messagebox.showerror(
                 "Ollama non disponible",
-                "Ollama n'est pas accessible. Assurez-vous qu'il est en cours d'exécution:\n\n"
+                "Ollama n'est pas accessible. Assurez-vous qu'il est en cours d'execution:\n\n"
                 "ollama serve"
             )
             return
@@ -773,13 +864,13 @@ votre serveur CalDAV."""
         if not self.calendars:
             messagebox.showerror(
                 "Aucun calendrier",
-                "Aucun calendrier trouvé.\n\n"
+                "Aucun calendrier trouve.\n\n"
                 "Configurez plann d'abord avec: plann --help"
             )
             return
 
         # Disable button during processing
-        self.add_button.config(state=tk.DISABLED, text="[...] Traitement...")
+        self.add_button.configure(state="disabled", text="⌛")
 
         # Process in background thread
         threading.Thread(target=self._process_event, args=(text,), daemon=True).start()
@@ -788,7 +879,7 @@ votre serveur CalDAV."""
         """Process event in background thread"""
         try:
             # Log input
-            self.log_message(f"📝 Entrée: {text}", 'info')
+            self.log_message(f"\U0001F4DD Entree: {text}", 'info')
 
             # Parse with Ollama
             parsed = self.parser.parse_event(text)
@@ -804,11 +895,16 @@ votre serveur CalDAV."""
                         'ical_fragment': ''
                     }
 
-            ctx = MockContext(self.calendars)
-
             # Execute
             if kwargs.get('todo'):
                 # Prepare kwargs for _add_todo
+                target_calendars = self.todo_calendars or self.calendars
+                if not target_calendars:
+                    self.log_message("\u26A0 Aucun calendrier compatible TODO", 'error')
+                    return
+
+                ctx = MockContext(target_calendars)
+
                 todo_kwargs = {'summary': (summary,)}
                 if kwargs.get('set_due'):
                     todo_kwargs['set_due'] = kwargs['set_due']
@@ -818,34 +914,47 @@ votre serveur CalDAV."""
                     todo_kwargs['set_alarm'] = kwargs['set_alarm']
 
                 _add_todo(ctx, **todo_kwargs)
-                event_icon = "✓"
+                event_icon = "\u2705"
 
             elif kwargs.get('event'):
                 # Prepare kwargs for _add_event
-                event_kwargs = {'summary': (summary,)}
+                target_calendars = self.event_calendars or self.calendars
+                if not target_calendars:
+                    self.log_message("\u26A0 Aucun calendrier compatible evenements", 'error')
+                    return
+
+                ctx = MockContext(target_calendars)
+
+                event_kwargs = {'summary': summary}
                 if kwargs.get('alarm'):
                     event_kwargs['alarm'] = kwargs['alarm']
+                if kwargs.get('set_location'):
+                    event_kwargs['set_location'] = kwargs['set_location']
 
                 _add_event(ctx, timespec, **event_kwargs)
-                event_icon = "📅"
+                event_icon = "\U0001F4C5"
+
+            else:
+                self.log_message("\u26A0 Type de commande non gere", 'error')
+                return
 
             # Log success
-            self.log_message(f"{event_icon} Ajouté: {summary}", 'success')
+            self.log_message(f"{event_icon} Ajoute: {summary}", 'success')
 
             # Clear input
             self.root.after(0, self._clear_input)
 
         except Exception as e:
-            self.log_message(f"❌ Erreur: {str(e)}", 'error')
+            self.log_message(f"\u274C Erreur: {str(e)}", 'error')
 
         finally:
             # Re-enable button
-            self.root.after(0, lambda: self.add_button.config(state=tk.NORMAL, text="[+] Ajouter"))
+            self.root.after(0, lambda: self.add_button.configure(state="normal", text="Ajouter"))
 
     def _clear_input(self):
         """Clear text input"""
         self.text_input.delete("1.0", tk.END)
-        self.text_input.focus()
+        self.text_input.focus_set()
 
     def voice_input(self):
         """Voice input mode"""
@@ -854,14 +963,14 @@ votre serveur CalDAV."""
         except ImportError:
             messagebox.showerror(
                 "Module manquant",
-                "Le module 'speech_recognition' n'est pas installé.\n\n"
+                "Le module 'speech_recognition' n'est pas installe.\n\n"
                 "Installez-le avec:\n"
                 "pip install SpeechRecognition pyaudio"
             )
             return
 
         # Disable button
-        self.voice_button.config(state=tk.DISABLED, text="[Mic] Écoute...")
+        self.voice_button.configure(state="disabled", text="⌛")
 
         # Process in background
         threading.Thread(target=self._voice_input_thread, daemon=True).start()
@@ -874,17 +983,17 @@ votre serveur CalDAV."""
             recognizer = sr.Recognizer()
 
             with sr.Microphone() as source:
-                self.log_message("🎤 Calibration...", 'info')
+                self.log_message("\U0001F3A4 Calibration...", 'info')
                 recognizer.adjust_for_ambient_noise(source, duration=1)
 
-                self.log_message("🎤 Parlez maintenant...", 'info')
-                audio = recognizer.listen(source, timeout=10)
+                self.log_message("\U0001F3A4 Parlez maintenant...", 'info')
+                audio = recognizer.listen(source, timeout=15, phrase_time_limit=25)
 
-            self.log_message("🎤 Transcription...", 'info')
+            self.log_message("\U0001F3A4 Transcription...", 'info')
 
             try:
                 text = recognizer.recognize_google(audio, language='fr-FR')
-                self.log_message(f"🎤 Capturé: {text}", 'success')
+                self.log_message(f"\U0001F3A4 Capture: {text}", 'success')
 
                 # Set text in input
                 self.root.after(0, lambda: self.text_input.insert("1.0", text))
@@ -893,20 +1002,20 @@ votre serveur CalDAV."""
                 self.root.after(500, self.add_event)
 
             except sr.UnknownValueError:
-                self.log_message("❌ Impossible de comprendre l'audio", 'error')
+                self.log_message("\u274C Impossible de comprendre l'audio", 'error')
             except sr.RequestError as e:
-                self.log_message(f"❌ Erreur du service: {e}", 'error')
+                self.log_message(f"\u274C Erreur du service: {e}", 'error')
 
         except Exception as e:
-            self.log_message(f"❌ Erreur vocale: {str(e)}", 'error')
+            self.log_message(f"\u274C Erreur vocale: {str(e)}", 'error')
 
         finally:
-            self.root.after(0, lambda: self.voice_button.config(state=tk.NORMAL, text="[Mic] Vocal"))
+            self.root.after(0, lambda: self.voice_button.configure(state="normal", text="🎙️ Dicter"))
 
     def log_message(self, message, tag='info'):
         """Log message to history"""
         def _log():
-            self.history_text.config(state=tk.NORMAL)
+            self.history_text.configure(state="normal")
 
             # Add timestamp
             timestamp = datetime.now().strftime("%H:%M:%S")
@@ -916,15 +1025,15 @@ votre serveur CalDAV."""
             # Auto-scroll to bottom
             self.history_text.see(tk.END)
 
-            self.history_text.config(state=tk.DISABLED)
+            self.history_text.configure(state="disabled")
 
         self.root.after(0, _log)
 
     def clear_history(self):
         """Clear history text"""
-        self.history_text.config(state=tk.NORMAL)
+        self.history_text.configure(state="normal")
         self.history_text.delete("1.0", tk.END)
-        self.history_text.config(state=tk.DISABLED)
+        self.history_text.configure(state="disabled")
 
     def run(self):
         """Run the GUI"""
@@ -940,19 +1049,19 @@ def main():
     parser.add_argument(
         '--model',
         default=os.environ.get('OLLAMA_MODEL', 'llama2'),
-        help="Modèle Ollama à utiliser (défaut: llama2)"
+        help="Modele Ollama a utiliser (defaut: llama2)"
     )
 
     parser.add_argument(
         '--ollama-host',
         default=os.environ.get('OLLAMA_HOST', 'http://localhost:11434'),
-        help="URL de l'API Ollama (défaut: http://localhost:11434)"
+        help="URL de l'API Ollama (defaut: http://localhost:11434)"
     )
 
     parser.add_argument(
         '--config-section',
         default='default',
-        help="Section de configuration à utiliser (défaut: default)"
+        help="Section de configuration a utiliser (defaut: default)"
     )
 
     args = parser.parse_args()

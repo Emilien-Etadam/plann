@@ -138,9 +138,10 @@ Extrait les informations suivantes au format JSON:
 - "due_date": date d'échéance pour les tâches (format YYYY-MM-DD)
 - "priority": priorité de 1 (très haute) à 9 (très basse) si mentionnée ou devinée du contexte
 - "alarm": rappel si mentionné (format: "1h", "30m", "1d" pour 1 jour avant)
+- "location": lieu ou adresse si mentionné (ex: salle, adresse postale, ville)
 
 Exemples:
-"Rendez-vous dentiste demain à 14h" -> {{"type": "event", "summary": "Rendez-vous dentiste", "date": "2025-10-23", "time": "14:00"}}
+"Rendez-vous dentiste demain à 14h" -> {{"type": "event", "summary": "Rendez-vous dentiste", "date": "2025-10-23", "time": "14:00", "location": "Cabinet dentaire"}}
 "Réunion équipe lundi 10h pour 2 heures" -> {{"type": "event", "summary": "Réunion équipe", "date": "2025-10-27", "time": "10:00", "duration": "2h"}}
 "Acheter du pain" -> {{"type": "todo", "summary": "Acheter du pain", "priority": 5}}
 "Finir le rapport pour vendredi" -> {{"type": "todo", "summary": "Finir le rapport", "due_date": "2025-10-24", "priority": 3}}
@@ -184,7 +185,8 @@ Réponds UNIQUEMENT avec le JSON, sans autre texte."""
         result = {
             "type": "todo" if is_task else "event",
             "summary": text,
-            "priority": 5  # Default priority for plann (1-9 scale)
+            "priority": 5,  # Default priority for plann (1-9 scale)
+            "location": None
         }
 
         # Try to extract date
@@ -204,6 +206,16 @@ Réponds UNIQUEMENT avec le JSON, sans autre texte."""
             hour = int(time_match.group(1))
             minute = int(time_match.group(2)) if time_match.group(2) else 0
             result["time"] = f"{hour:02d}:{minute:02d}"
+
+        # Naive location extraction (after " à ", " au ", " chez ", " a ")
+        location_markers = [' à ', ' au ', ' chez ', ' en ', ' sur ', ' a ']
+        for marker in location_markers:
+            if marker in text_lower:
+                idx = text_lower.find(marker)
+                location_candidate = text[idx + len(marker):].strip()
+                if location_candidate:
+                    result["location"] = location_candidate
+                break
 
         return result
 
@@ -251,6 +263,10 @@ def format_for_plann(parsed_data: Dict[str, Any]) -> tuple:
         # Add alarm if specified
         if parsed_data.get("alarm"):
             kwargs['alarm'] = parsed_data["alarm"]
+
+        # Add location if provided
+        if parsed_data.get("location"):
+            kwargs['set_location'] = parsed_data["location"]
 
     else:  # todo
         timespec = None
